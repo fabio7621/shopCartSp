@@ -2,6 +2,9 @@ function init() {
   getProductList();
   getCartList();
 }
+
+init();
+
 let productdata = [];
 // 取得產品列表
 function getProductList() {
@@ -56,7 +59,7 @@ productSelect.addEventListener("change", function (e) {
   });
 });
 
-// 商品監聽取的data
+// 新增商品監聽增加數量---商品監聽取的data
 productWrap.addEventListener("click", function (e) {
   e.preventDefault();
   let addCartclass = e.target.getAttribute("class");
@@ -72,7 +75,21 @@ productWrap.addEventListener("click", function (e) {
       num = item.quantity += 1;
     }
   });
-  console.log(num);
+  axios
+    .post(
+      `https://livejs-api.hexschool.io/api/livejs/v1/customer/${api_path}/carts`,
+      {
+        data: {
+          productId: productId,
+          quantity: num,
+        },
+      }
+    )
+    .then(function (res) {
+      alert("加入成功");
+      console.log(res);
+      getCartList();
+    });
 });
 
 const cartlist = document.querySelector(".shoppingCart-lists");
@@ -84,6 +101,10 @@ function getCartList() {
       `https://livejs-api.hexschool.io/api/livejs/v1/customer/${api_path}/carts`
     )
     .then(function (res) {
+      //總金額
+      console.log(res.finalTotal);
+      document.querySelector(".total-js").textContent = res.data.finalTotal;
+      //取得購物車列表&渲染
       cartsData = res.data.carts;
       console.log(cartsData);
       let str = "";
@@ -99,7 +120,7 @@ function getCartList() {
         <td>${item.quantity}</td>
         <td>${item.product.price * item.quantity}</td>
         <td class="discardBtn">
-          <a href="#" class="material-icons"> clear </a>
+          <a href="#" class="material-icons" data-id=${item.id}> clear </a>
         </td>
       </tr>`;
       });
@@ -107,4 +128,87 @@ function getCartList() {
     });
 }
 
-init();
+cartlist.addEventListener("click", function (e) {
+  e.preventDefault();
+  const cartId = e.target.getAttribute("data-id");
+  if (cartId == null) {
+    alert("不可以點這裡");
+    return;
+  }
+  console.log(cartId);
+  axios
+    .delete(
+      `https://livejs-api.hexschool.io/api/livejs/v1/customer/${api_path}/carts/${cartId}`
+    )
+    .then(function (response) {
+      alert("這個酷東西下次買");
+      getCartList();
+    });
+});
+
+//刪除全部
+const delAllBtn = document.querySelector(".discardAllBtn");
+delAllBtn.addEventListener("click", function (e) {
+  e.preventDefault();
+  axios
+    .delete(
+      `https://livejs-api.hexschool.io/api/livejs/v1/customer/${api_path}/carts`
+    )
+    .then(function (res) {
+      alert("刪除全部購物車成功");
+      getCartList();
+    });
+});
+
+//訂單送出
+const orderInfoBtn = document.querySelector(".orderInfo-btn");
+orderInfoBtn.addEventListener("click", function (e) {
+  e.preventDefault();
+  //檢查購物車有沒有資料
+  if (cartsData.length == 0) {
+    alert("請加入購物車");
+    return;
+  } else {
+    alert("有料!購物車OK!");
+  }
+  //檢查有無輸入
+  const customerName = document.querySelector("#customerName").value;
+  const customerPhone = document.querySelector("#customerPhone").value;
+  const customerEmail = document.querySelector("#customerEmail").value;
+  const customerAddress = document.querySelector("#customerAddress").value;
+  const customerTradeWay = document.querySelector("#tradeWay").value;
+  if (
+    customerName == "" ||
+    customerPhone == "" ||
+    customerEmail == "" ||
+    customerAddress == "" ||
+    customerTradeWay == ""
+  ) {
+    alert("請確實填入訂單");
+    return;
+  }
+  axios
+    .post(
+      `https://livejs-api.hexschool.io/api/livejs/v1/customer/${api_path}/orders`,
+      {
+        data: {
+          user: {
+            name: customerName,
+            tel: customerPhone,
+            email: customerEmail,
+            address: customerAddress,
+            payment: customerTradeWay,
+          },
+        },
+      }
+    )
+    .then(function (res) {
+      alert("訂單建立OK");
+      document.querySelector("#customerName").value = "";
+      document.querySelector("#customerPhone").value = "";
+      document.querySelector("#customerEmail").value = "";
+      document.querySelector("#customerAddress").value = "";
+      document.querySelector("#tradeWay").value = "ATM";
+      getCartList();
+    });
+});
