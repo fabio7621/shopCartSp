@@ -21,6 +21,11 @@ function getOrderList() {
       //組訂單字串
       let str = "";
       orderData.forEach(function (item) {
+        //組時間
+        const timpStamp = new Date(item.createdAt * 1000);
+        const orderdaytime = `${timpStamp.getFullYear()}/${
+          timpStamp.getMonth() + 1
+        }/${timpStamp.getDate()}`;
         //組產品字串
         let prodStr = "";
         item.products.forEach(function (proditem) {
@@ -44,7 +49,7 @@ function getOrderList() {
         <td>
           ${prodStr}
         </td>
-        <td>${item.createdAt}</td>
+        <td>${orderdaytime}</td>
         <td class="orderStatus ">
           <a href="#"><p class="js-orderStaus" data-status="${item.paid}" data-id="${item.id}">${orderStatus}</p>
           </a>
@@ -55,18 +60,20 @@ function getOrderList() {
       </tr>`;
       });
       orderList.innerHTML = str;
+      C3render();
     });
 }
 orderList.addEventListener("click", function (e) {
   e.preventDefault();
   const targetClass = e.target.getAttribute("class");
+  let id = e.target.getAttribute("data-id");
   if (targetClass == "js-orderDel delSingleOrder-Btn") {
-    alert("你點擊到刪除");
+    delorderItem(id);
     return;
   }
   if (targetClass == "js-orderStaus") {
     let status = e.target.getAttribute("data-status");
-    let id = e.target.getAttribute("data-id");
+
     orderStatusChange(status, id);
     return;
   }
@@ -99,3 +106,78 @@ function orderStatusChange(status, id) {
       getOrderList();
     });
 }
+function delorderItem(id) {
+  //console.log(id);
+  axios
+    .delete(
+      `https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders/${id}`,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    )
+    .then(function (res) {
+      alert("你已刪除一筆訂單");
+      getOrderList();
+    });
+}
+function C3render() {
+  console.log(orderData);
+
+  let total = {};
+  orderData.forEach(function (item) {
+    item.products.forEach(function (cjItem) {
+      if (total[cjItem.category] == undefined) {
+        total[cjItem.category] = cjItem.price * cjItem.quantity;
+      } else {
+        total[cjItem.category] += cjItem.price * cjItem.quantity;
+      }
+    });
+  });
+  console.log(total);
+  //整理我要的格式  上面做出來會像這樣 {收納: 1560, 床架: 69000}
+  let newArr = [];
+  let categoryArr = Object.keys(total);
+  console.log(categoryArr);
+  categoryArr.forEach(function (item) {
+    let arr = [];
+    arr.push(item);
+    arr.push(total[item]);
+    newArr.push(arr);
+  });
+  console.log(newArr);
+
+  // C3.js
+  let chart = c3.generate({
+    bindto: "#chart", // HTML 元素綁定
+    data: {
+      type: "pie",
+      columns: newArr,
+      colors: {
+        床架: "#FAF",
+        收納: "#9D7FEA",
+        "Anty 雙人床架": "#5434A7",
+        其他: "#301E5F",
+      },
+    },
+  });
+}
+
+const delAlloder = document.querySelector(".discardAllBtn");
+delAlloder.addEventListener("click", function (e) {
+  e.preventDefault();
+  axios
+    .delete(
+      `https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders`,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    )
+    .then(function (response) {
+      alert("刪光光!!");
+      getOrderList();
+    });
+});
